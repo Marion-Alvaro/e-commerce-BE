@@ -21,6 +21,9 @@ class Cart(models.Model):
     objects = ActiveManager()
     all_objects = models.Manager()
 
+    class Meta:
+        db_table = "carts"
+
 
 class CartItem(models.Model):
     cart = models.ForeignKey(
@@ -42,3 +45,6 @@ class CartItem(models.Model):
 
     objects = ActiveManager()
     all_objects = models.Manager()
+
+    class Meta:
+        db_table = "cart_items"

@@ -21,6 +21,7 @@ class Product(models.Model):
     all_objects = models.Manager()
 
     class Meta:
+        db_table = "products"
         constraints = [
             models.CheckConstraint(
                 condition=models.Q(stock_quantity__gte=0),

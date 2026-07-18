@@ -20,6 +20,9 @@ class Order(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
 
+    class Meta:
+        db_table = "orders"
+
 
 class OrderItem(models.Model):
     order = models.ForeignKey(
@@ -36,3 +39,6 @@ class OrderItem(models.Model):
     )
     quantity = models.PositiveIntegerField()
     unit_price_cents = models.IntegerField()
+
+    class Meta:
+        db_table = "order_items"
