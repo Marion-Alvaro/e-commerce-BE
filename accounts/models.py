@@ -25,7 +25,7 @@ class RefreshToken(models.Model):
         db_index=True,
     )
     token_hash = models.CharField(max_length=64, unique=True)
-    family_id = models.UUIDField()
+    family_id = models.UUIDField(db_index=True)
     expires_at = models.DateTimeField()
     revoked_at = models.DateTimeField(null=True, blank=True)
     created_at = models.DateTimeField(auto_now_add=True)

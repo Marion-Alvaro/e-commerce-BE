@@ -2,11 +2,21 @@ from pathlib import Path
 from dotenv import load_dotenv
 import os
 
+from django.core.exceptions import ImproperlyConfigured
+
 load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
 SECRET_KEY = os.environ.get('SECRET_KEY')
+
+# Signs the hand-rolled JWT access tokens. Deliberately separate from
+# SECRET_KEY (which Django also uses for sessions, password reset tokens,
+# etc.) so rotating one never invalidates the other.
+ACCESS_TOKEN_SECRET = os.environ.get('ACCESS_TOKEN_SECRET')
+if not ACCESS_TOKEN_SECRET:
+    # Fail at startup, not on the first jwt.encode() call in production.
+    raise ImproperlyConfigured("ACCESS_TOKEN_SECRET environment variable is not set.")
 
 
 # Application definition
@@ -110,6 +120,19 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
+# Origins populated per-env (dev.py / prod.py). Credentials must be allowed
+# for the httponly auth cookies to be sent/received cross-origin from the
+# React frontend — a wildcard origin is rejected by browsers once this is on.
 CORS_ALLOWED_ORIGINS = []
+CORS_ALLOW_CREDENTIALS = True
 
 AUTH_USER_MODEL = "accounts.CustomUser"
+
+REST_FRAMEWORK = {
+    'DEFAULT_AUTHENTICATION_CLASSES': [
+        'accounts.authentication.CookieJWTAuthentication',
+    ],
+    'DEFAULT_PERMISSION_CLASSES': [
+        'rest_framework.permissions.IsAuthenticated',
+    ],
+}
