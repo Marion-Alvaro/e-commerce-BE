@@ -32,8 +32,11 @@ class AuthFlowTests(APITestCase):
         return response
 
     def _csrf_headers(self):
-        csrf_token = self.client.cookies["csrftoken"].value
-        return {"HTTP_X_CSRF_TOKEN": csrf_token}
+        # Send a real `X-CSRF-Token` HTTP header (via headers=) so Django performs
+        # its actual header→META conversion. Injecting HTTP_* into the environ
+        # directly would bypass that step and hide header-name mismatches.
+        csrf_token = self.client.cookies["csrf_token"].value
+        return {"headers": {"X-CSRF-Token": csrf_token}}
 
     def test_register_login_refresh_logout_round_trip(self):
         response = self.client.post(
@@ -126,4 +129,4 @@ class AuthFlowTests(APITestCase):
         )
         self.client.cookies["access_token"] = bad_token
         response = self.client.post(LOGOUT_URL, **self._csrf_headers())
-        self.assertEqual(response.status_code, 403)
+        self.assertEqual(response.status_code, 401)

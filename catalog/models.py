@@ -22,6 +22,7 @@ class Product(models.Model):
 
     class Meta:
         db_table = "products"
+        ordering = ["-created_at"]
         constraints = [
             models.CheckConstraint(
                 condition=models.Q(stock_quantity__gte=0),
