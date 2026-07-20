@@ -1,9 +1,10 @@
 import jwt
-from django.conf import settings
 from django.contrib.auth import get_user_model
 from drf_spectacular.extensions import OpenApiAuthenticationExtension
 from rest_framework.authentication import BaseAuthentication
 from rest_framework.exceptions import AuthenticationFailed
+
+from common import jwt_utils
 
 User = get_user_model()
 
@@ -17,7 +18,7 @@ class CookieJWTAuthentication(BaseAuthentication):
             return None
 
         try:
-            payload = jwt.decode(token, settings.ACCESS_TOKEN_SECRET, algorithms=["HS256"])
+            payload = jwt_utils.decode(token)
         except jwt.ExpiredSignatureError:
             raise AuthenticationFailed("Access token expired.")
         except jwt.InvalidTokenError:

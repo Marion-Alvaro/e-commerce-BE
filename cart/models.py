@@ -1,10 +1,7 @@
 from django.conf import settings
 from django.db import models
 
-
-class ActiveManager(models.Manager):
-    def get_queryset(self):
-        return super().get_queryset().filter(deleted_at__isnull=True)
+from common.models import ActiveManager
 
 
 class Cart(models.Model):

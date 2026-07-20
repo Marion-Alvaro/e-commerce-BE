@@ -1,6 +1,6 @@
 from django.contrib.auth import get_user_model
-from django.utils import timezone
-from rest_framework.test import APITestCase
+
+from common.testing import AuthenticatedAPITestCase
 
 from catalog.models import Product
 
@@ -13,7 +13,7 @@ def _detail_url(product_id):
     return f"{PRODUCTS_URL}{product_id}/"
 
 
-class ProductViewSetTests(APITestCase):
+class ProductViewSetTests(AuthenticatedAPITestCase):
     def setUp(self):
         self.admin = User.objects.create_user(
             username="admin",
@@ -33,22 +33,6 @@ class ProductViewSetTests(APITestCase):
             stock_quantity=10,
             sku="WIDGET-1",
         )
-
-    def _login(self, email):
-        response = self.client.post(
-            "/api/auth/login/", {"email": email, "password": "correct-horse-battery-staple"}
-        )
-        self.assertEqual(response.status_code, 200)
-
-    def _csrf_headers(self):
-        # Send a real `X-CSRF-Token` HTTP header (via headers=) so Django runs its
-        # actual header→META conversion instead of us writing request.META directly.
-        csrf_token = self.client.cookies["csrf_token"].value
-        return {"headers": {"X-CSRF-Token": csrf_token}}
-
-    def _soft_delete(self, product):
-        product.deleted_at = timezone.now()
-        product.save(update_fields=["deleted_at"])
 
     def test_list_is_public(self):
         response = self.client.get(PRODUCTS_URL)

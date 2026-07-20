@@ -33,6 +33,7 @@ INSTALLED_APPS = [
     'corsheaders',
     'drf_spectacular',
     # local apps
+    'common',
     'accounts',
     'catalog',
     'cart',

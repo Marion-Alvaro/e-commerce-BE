@@ -3,11 +3,11 @@ import secrets
 import uuid
 from datetime import timedelta
 
-import jwt
-from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
 from rest_framework.exceptions import AuthenticationFailed
+
+from common import jwt_utils
 
 from .models import RefreshToken
 
@@ -25,7 +25,7 @@ def generate_access_token(user):
         "iat": now,
         "exp": now + ACCESS_TOKEN_TTL,
     }
-    return jwt.encode(payload, settings.ACCESS_TOKEN_SECRET, algorithm="HS256")
+    return jwt_utils.encode(payload)
 
 
 def generate_csrf_token():

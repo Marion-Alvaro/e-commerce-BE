@@ -3,7 +3,9 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework import serializers as drf_serializers
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.test import APIRequestFactory, APITestCase
+from rest_framework.test import APIRequestFactory
+
+from common.testing import AuthenticatedAPITestCase
 
 from .authentication import CookieJWTAuthentication
 from .models import RefreshToken
@@ -17,7 +19,7 @@ REFRESH_URL = "/api/auth/refresh/"
 LOGOUT_URL = "/api/auth/logout/"
 
 
-class AuthFlowTests(APITestCase):
+class AuthFlowTests(AuthenticatedAPITestCase):
     def setUp(self):
         self.password = "correct-horse-battery-staple"
         self.user = User.objects.create_user(
@@ -25,20 +27,6 @@ class AuthFlowTests(APITestCase):
             email="alice@example.com",
             password=self.password,
         )
-
-    def _login(self):
-        response = self.client.post(
-            LOGIN_URL, {"email": "alice@example.com", "password": self.password}
-        )
-        self.assertEqual(response.status_code, 200)
-        return response
-
-    def _csrf_headers(self):
-        # Send a real `X-CSRF-Token` HTTP header (via headers=) so Django performs
-        # its actual header→META conversion. Injecting HTTP_* into the environ
-        # directly would bypass that step and hide header-name mismatches.
-        csrf_token = self.client.cookies["csrf_token"].value
-        return {"headers": {"X-CSRF-Token": csrf_token}}
 
     def test_register_login_refresh_logout_round_trip(self):
         response = self.client.post(
@@ -69,12 +57,12 @@ class AuthFlowTests(APITestCase):
         self.assertEqual(str(response.data["detail"]), "Invalid email or password.")
 
     def test_refresh_without_csrf_header_is_rejected(self):
-        self._login()
+        self._login("alice@example.com")
         response = self.client.post(REFRESH_URL)
         self.assertEqual(response.status_code, 403)
 
     def test_refresh_with_matching_csrf_header_succeeds(self):
-        self._login()
+        self._login("alice@example.com")
         response = self.client.post(REFRESH_URL, **self._csrf_headers())
         self.assertEqual(response.status_code, 200)
 
@@ -118,7 +106,7 @@ class AuthFlowTests(APITestCase):
             serializer.create(validated_data)
 
     def test_refresh_token_reuse_revokes_entire_family(self):
-        self._login()
+        self._login("alice@example.com")
         raw_token_a = self.client.cookies["refresh_token"].value
         family_id = RefreshToken.objects.get(user=self.user).family_id
 
@@ -154,7 +142,7 @@ class AuthFlowTests(APITestCase):
         # Access tokens live 15 minutes, refresh tokens live 7 days — logging
         # out with an expired access token but a still-valid refresh token is
         # a common case and must still revoke the session (see accounts/views.py).
-        self._login()
+        self._login("alice@example.com")
         family_id = RefreshToken.objects.get(user=self.user).family_id
 
         expired_payload = {
