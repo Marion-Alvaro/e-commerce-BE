@@ -94,6 +94,28 @@ class ProductViewSetTests(APITestCase):
         self.assertEqual(response.status_code, 201)
         self.assertTrue(Product.objects.filter(sku="NEW-1").exists())
 
+    def test_create_with_negative_price_is_rejected(self):
+        self._login("admin@example.com")
+        response = self.client.post(
+            PRODUCTS_URL,
+            {"name": "New", "price_cents": -100, "stock_quantity": 1, "sku": "NEW-1"},
+            **self._csrf_headers(),
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("price_cents", response.data)
+        self.assertFalse(Product.objects.filter(sku="NEW-1").exists())
+
+    def test_create_with_negative_stock_is_rejected(self):
+        self._login("admin@example.com")
+        response = self.client.post(
+            PRODUCTS_URL,
+            {"name": "New", "price_cents": 100, "stock_quantity": -1, "sku": "NEW-1"},
+            **self._csrf_headers(),
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("stock_quantity", response.data)
+        self.assertFalse(Product.objects.filter(sku="NEW-1").exists())
+
     def test_partial_update_as_admin_succeeds(self):
         self._login("admin@example.com")
         response = self.client.patch(

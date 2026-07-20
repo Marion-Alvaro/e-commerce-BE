@@ -48,3 +48,9 @@ class CartItem(models.Model):
 
     class Meta:
         db_table = "cart_items"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(quantity__gt=0),
+                name="cart_item_quantity_positive",
+            )
+        ]

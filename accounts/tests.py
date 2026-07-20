@@ -2,8 +2,10 @@ import jwt
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from rest_framework import serializers as drf_serializers
-from rest_framework.test import APITestCase
+from rest_framework.exceptions import AuthenticationFailed
+from rest_framework.test import APIRequestFactory, APITestCase
 
+from .authentication import CookieJWTAuthentication
 from .models import RefreshToken
 from .serializers import RegisterSerializer
 
@@ -89,6 +91,19 @@ class AuthFlowTests(APITestCase):
         self.assertEqual(response.status_code, 400)
         self.assertIn("email", response.data)
 
+    def test_duplicate_username_register_returns_validation_error_not_500(self):
+        response = self.client.post(
+            REGISTER_URL,
+            {
+                "email": "someone-else@example.com",
+                "username": "alice",
+                "password": "another-strong-pass1",
+                "password_confirm": "another-strong-pass1",
+            },
+        )
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("username", response.data)
+
     def test_serializer_create_converts_integrity_error_to_validation_error(self):
         # Bypasses validate_email's pre-check to exercise the IntegrityError
         # fallback in RegisterSerializer.create() directly.
@@ -122,11 +137,39 @@ class AuthFlowTests(APITestCase):
         self.assertTrue(all(token.revoked_at is not None for token in family_tokens))
 
     def test_malformed_access_token_without_user_id_is_rejected_not_500(self):
-        self._login()
+        # logout deliberately doesn't authenticate via the access token cookie
+        # (see accounts/views.py) so this exercises CookieJWTAuthentication
+        # directly rather than through an endpoint.
         bad_payload = {"role": self.user.role}
         bad_token = jwt.encode(
             bad_payload, settings.ACCESS_TOKEN_SECRET, algorithm="HS256"
         )
-        self.client.cookies["access_token"] = bad_token
+        request = APIRequestFactory().get("/")
+        request.COOKIES["access_token"] = bad_token
+
+        with self.assertRaises(AuthenticationFailed):
+            CookieJWTAuthentication().authenticate(request)
+
+    def test_logout_revokes_family_even_with_expired_access_token(self):
+        # Access tokens live 15 minutes, refresh tokens live 7 days — logging
+        # out with an expired access token but a still-valid refresh token is
+        # a common case and must still revoke the session (see accounts/views.py).
+        self._login()
+        family_id = RefreshToken.objects.get(user=self.user).family_id
+
+        expired_payload = {
+            "user_id": self.user.id,
+            "role": self.user.role,
+            "exp": 0,
+        }
+        expired_token = jwt.encode(
+            expired_payload, settings.ACCESS_TOKEN_SECRET, algorithm="HS256"
+        )
+        self.client.cookies["access_token"] = expired_token
+
         response = self.client.post(LOGOUT_URL, **self._csrf_headers())
-        self.assertEqual(response.status_code, 401)
+        self.assertEqual(response.status_code, 200)
+
+        family_tokens = RefreshToken.objects.filter(family_id=family_id)
+        self.assertTrue(family_tokens.exists())
+        self.assertTrue(all(token.revoked_at is not None for token in family_tokens))

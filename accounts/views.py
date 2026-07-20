@@ -9,7 +9,7 @@ from drf_spectacular.utils import (
 from rest_framework import serializers
 from rest_framework.decorators import api_view, authentication_classes, permission_classes
 from rest_framework.exceptions import AuthenticationFailed
-from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.permissions import AllowAny
 from rest_framework.response import Response
 
 from . import services
@@ -208,16 +208,17 @@ def refresh(request):
     parameters=[_CSRF_HEADER],
     responses={
         200: OpenApiResponse(_DetailResponse, description="Logged out; auth cookies cleared."),
-        401: OpenApiResponse(_DetailResponse, description="Not authenticated (missing or invalid access token)."),
         403: OpenApiResponse(_DetailResponse, description="CSRF token missing or does not match the cookie."),
     },
     description=(
         "Revoke the current refresh-token family and clear the auth cookies. "
-        "Requires authentication and the `X-CSRF-Token` header."
+        "Does not require a valid access token — only the `X-CSRF-Token` header, "
+        "so a session can still be logged out after the access token has expired."
     ),
 )
 @api_view(["POST"])
-@permission_classes([IsAuthenticated, CSRFPermission])
+@authentication_classes([])
+@permission_classes([CSRFPermission])
 def logout(request):
     raw_refresh_token = request.COOKIES.get("refresh_token")
     if raw_refresh_token:
