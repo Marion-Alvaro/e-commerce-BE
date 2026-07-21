@@ -7,8 +7,8 @@ User = get_user_model()
 
 
 class RegisterSerializer(serializers.Serializer):
-    email = serializers.EmailField()
-    username = serializers.CharField()
+    email = serializers.EmailField(max_length=254)
+    username = serializers.CharField(max_length=150)
     password = serializers.CharField(write_only=True)
     password_confirm = serializers.CharField(write_only=True)
 
