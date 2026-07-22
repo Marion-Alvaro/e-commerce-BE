@@ -8,6 +8,16 @@ load_dotenv()
 
 BASE_DIR = Path(__file__).resolve().parent.parent.parent
 
+
+def env_list(name, default=""):
+    """Parse a comma-separated env var into a list, dropping blanks/whitespace.
+
+    Kept here rather than duplicated in dev.py/prod.py: the *parsing* is the
+    same everywhere, only the values differ per environment. Tolerating spaces
+    around commas means a stray "a, b" in a .env is not a silent misconfig.
+    """
+    return [v.strip() for v in os.environ.get(name, default).split(",") if v.strip()]
+
 SECRET_KEY = os.environ.get('SECRET_KEY')
 
 # Signs the hand-rolled JWT access tokens. Deliberately separate from
@@ -17,6 +27,22 @@ ACCESS_TOKEN_SECRET = os.environ.get('ACCESS_TOKEN_SECRET')
 if not ACCESS_TOKEN_SECRET:
     # Fail at startup, not on the first jwt.encode() call in production.
     raise ImproperlyConfigured("ACCESS_TOKEN_SECRET environment variable is not set.")
+
+# PayMongo keys are deliberately NOT fail-fast like ACCESS_TOKEN_SECRET above:
+# that secret signs every authenticated request, so a missing value should
+# block the whole app at startup. These are only read at checkout/webhook
+# time, so a missing key surfaces there instead (a 401 from PayMongo or a
+# webhook signature failure), without blocking unrelated auth/catalog/cart
+# endpoints for a dev who hasn't set up PayMongo yet.
+PAYMONGO_SECRET_KEY = os.environ.get('PAYMONGO_SECRET_KEY')
+PAYMONGO_WEBHOOK_SECRET = os.environ.get('PAYMONGO_WEBHOOK_SECRET')
+# Public (publishable) key. The backend never calls PayMongo with it — it is
+# exposed here only so the frontend can be served its value from one place
+# instead of hardcoding a second copy.
+PAYMONGO_PUBLIC_KEY = os.environ.get('PAYMONGO_PUBLIC_KEY')
+# No currency setting: PayMongo settles in PHP only, so a configurable
+# currency would be a knob with exactly one valid position. The constant
+# lives in orders/paymongo.py next to the API call that uses it.
 
 
 # Application definition
@@ -122,10 +148,12 @@ USE_TZ = True
 
 STATIC_URL = 'static/'
 
-# Origins populated per-env (dev.py / prod.py). Credentials must be allowed
-# for the httponly auth cookies to be sent/received cross-origin from the
-# React frontend — a wildcard origin is rejected by browsers once this is on.
-CORS_ALLOWED_ORIGINS = []
+ALLOWED_HOSTS = env_list("ALLOWED_HOSTS")
+
+# Credentials must be allowed for the httponly auth cookies to be sent/received
+# cross-origin from the React frontend — a wildcard origin is rejected by
+# browsers once this is on, so every origin must be listed explicitly.
+CORS_ALLOWED_ORIGINS = env_list("CORS_ALLOWED_ORIGINS")
 CORS_ALLOW_CREDENTIALS = True
 
 AUTH_USER_MODEL = "accounts.CustomUser"
@@ -188,6 +216,7 @@ SPECTACULAR_SETTINGS = {
         {'name': 'Authentication', 'description': 'Register, login, token refresh, logout (cookie-JWT).'},
         {'name': 'Catalog', 'description': 'Product listing, search, and admin-only writes.'},
         {'name': 'Cart', 'description': "The logged-in user's cart: view, add, update, and remove items."},
+        {'name': 'Orders', 'description': 'Checkout and PayMongo payment processing.'},
     ],
     'SWAGGER_UI_SETTINGS': {
         # Remember the "Authorize" state across page reloads in the browser.
