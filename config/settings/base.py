@@ -187,6 +187,7 @@ SPECTACULAR_SETTINGS = {
     'TAGS': [
         {'name': 'Authentication', 'description': 'Register, login, token refresh, logout (cookie-JWT).'},
         {'name': 'Catalog', 'description': 'Product listing, search, and admin-only writes.'},
+        {'name': 'Cart', 'description': "The logged-in user's cart: view, add, update, and remove items."},
     ],
     'SWAGGER_UI_SETTINGS': {
         # Remember the "Authorize" state across page reloads in the browser.

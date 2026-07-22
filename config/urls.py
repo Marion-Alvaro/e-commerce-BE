@@ -22,6 +22,7 @@ urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/auth/', include('accounts.urls')),
     path('api/', include('catalog.urls')),
+    path('api/', include('cart.urls')),
 ]
 
 # Interactive API docs are a dev-only surface: mounted only when DEBUG is True
